@@ -174,10 +174,15 @@ async function generateConfig() {
     log: { access: '/dev/null', error: '/dev/null', loglevel: 'none' },
     inbounds: [
       {
-        port: parseInt(ARGO_PORT), protocol: 'vless',
+        port: parseInt(ARGO_PORT), listen: '127.0.0.1', protocol: 'vless',
         settings: {
           clients: [{ id: UUID, flow: 'xtls-rprx-vision' }], decryption: 'none',
-          fallbacks: [{ dest: '3001' }, { dest: '3002', path: '/vless-argo' }, { dest: '3003', path: '/vmess-argo' }, { dest: '3004', path: '/trojan-argo' }]
+          fallbacks: [
+            { dest: '127.0.0.1:3001' },
+            { dest: '127.0.0.1:3002', path: '/vless-argo' },
+            { dest: '127.0.0.1:3003', path: '/vmess-argo' },
+            { dest: '127.0.0.1:3004', path: '/trojan-argo' }
+          ]
         },
         streamSettings: { network: 'tcp', security: 'none' }
       },
@@ -273,8 +278,14 @@ async function startserver() {
     xrayProcess = exec(`${path.join(FILE_PATH, 'xray')} -c ${path.join(FILE_PATH, 'config.json')}`, { cwd: FILE_PATH });
     log('XRAY', 'Xray已启动');
 
-    let cfArgs = `tunnel --no-autoupdate --url http://localhost:${ARGO_PORT} --logfile ${path.join(FILE_PATH, 'boot.log')}`;
-    if (ARGO_AUTH) cfArgs = ARGO_AUTH.includes('TunnelSecret') ? `tunnel --no-autoupdate --config ${path.join(FILE_PATH, 'tunnel.yml')}` : `tunnel --no-autoupdate --token ${ARGO_AUTH}`;
+    let cfArgs = `tunnel --no-autoupdate --url http://127.0.0.1:${ARGO_PORT} --logfile ${path.join(FILE_PATH, 'boot.log')}`;
+    if (ARGO_AUTH) {
+      if (ARGO_AUTH.includes('TunnelSecret')) {
+        cfArgs = `tunnel --no-autoupdate --config ${path.join(FILE_PATH, 'tunnel.yml')}`;
+      } else {
+        cfArgs = `tunnel --no-autoupdate --token ${ARGO_AUTH}`;
+      }
+    }
     
     cloudflaredProcess = exec(`${path.join(FILE_PATH, 'cloudflared')} ${cfArgs}`, { cwd: FILE_PATH });
     log('TUNNEL', 'Cloudflared已启动');
@@ -289,5 +300,5 @@ async function startserver() {
   });
 }
 
-app.listen(PORT, () => log('HTTP', `控制面板: http://0.0.0.0:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => log('HTTP', `控制面板: http://0.0.0.0:${PORT}`));
 startserver().catch(e => log('FATAL', e.message, 'error'));

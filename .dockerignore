@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+node_modules
+npm-debug.log
+package-lock.json
+README.md
+docs
+tmp/*
+.vscode
+.idea
